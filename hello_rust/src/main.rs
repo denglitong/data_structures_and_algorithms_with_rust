@@ -1,3 +1,4 @@
+mod errors;
 mod objects;
 
 fn main() {
