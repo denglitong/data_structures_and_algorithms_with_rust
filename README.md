@@ -1,1 +1,1 @@
-# hands_on_data_sstructures_and_algorithms_with_rust
+# hands_on_data_structures_and_algorithms_with_rust
