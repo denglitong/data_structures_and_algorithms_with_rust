@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 fn threading() {
@@ -56,7 +57,38 @@ fn channels() {
     }
     // receive N times
     let numbers: Vec<i32> = (0..N).map(|_| rx.recv().unwrap()).collect();
-    println!("{:?}", numbers);
+    println!("channels: {:?}", numbers);
+}
+
+/// Other then sending data into threads one way, many programs operate on a shared state where
+/// multiple execution streams have to access and change one or more shared variables. Typically,
+/// this warrants a ```mutex```(short for ```mutual exclusion```互斥的), so that any time something
+/// is accessed within this locked mutex, it's guaranteed to be a single thread.
+///
+/// This is an old concept and implemented in the Rust standard library. How does that facilitate
+/// accessing a variable? Wrapping a variable into a Mutex type will provide for the locking mechanism,
+/// thereby making it accessible from multiple concurrent writers. However, they don't have ownership
+/// of that memory area yet.
+///
+/// In order to provide that ownership across threads, similar to what Rc does within a single thread,
+/// Rust provides the concept of an ```Arc```, an ```atomic reference counter```. Using this Mutex on top,
+/// it's the thread-safe equivalent of an Rc wrapping a RefCell, a reference counter that wraps a mutable container.
+///
+/// While the preferred way of doing concurrent programming is still to use immutable variables
+/// as often as possible, safe Rust provides the tools for working with shared data without side effects.
+fn shared_state() {
+    let v = Arc::new(Mutex::new(vec![]));
+    let handlers = (0..10).map(|i| {
+        let numbers = Arc::clone(&v);
+        thread::spawn(move || {
+            let mut vector = numbers.lock().unwrap();
+            (*vector).push(i);
+        })
+    });
+    for handle in handlers {
+        handle.join().unwrap();
+    }
+    println!("shared state: {:?}", v.lock().unwrap());
 }
 
 fn sanitize(s: String) -> String {
@@ -119,7 +151,7 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
-    use crate::concurrency_and_mutability::{channels, threading, threading_move};
+    use crate::concurrency_and_mutability::{channels, shared_state, threading, threading_move};
 
     #[test]
     fn test_threading() {
@@ -134,5 +166,10 @@ mod tests {
     #[test]
     fn test_channels() {
         channels();
+    }
+
+    #[test]
+    fn test_shared_state() {
+        shared_state();
     }
 }
